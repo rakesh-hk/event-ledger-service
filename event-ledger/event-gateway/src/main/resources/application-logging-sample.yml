@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: event-gateway
+  profiles:
+    active: local
+
+logging:
+  config: classpath:logback-spring.xml
+
+app:
+  log:
+    path: logs
+    file-name: event-gateway
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
