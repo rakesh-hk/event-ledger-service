@@ -1,0 +1,126 @@
+<configuration scan="true" debug="false">
+
+    <springProperty scope="context" name="serviceName" source="spring.application.name" />
+    <springProperty scope="context" name="environment" source="spring.profiles.active" />
+    <property name="hostname" value="${HOSTNAME:-unknown-host}" />
+    <property name="logPath" value="${LOG_PATH:-logs}" />
+    <property name="logFileName" value="${LOG_FILE_NAME:-application}" />
+
+    <appender name="LOCAL_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} [%thread] %-5level %logger{36} [service=%X{serviceName:-${serviceName}} env=%X{environment:-${environment}} traceId=%X{traceId:-} spanId=%X{spanId:-} requestId=%X{requestId:-}] - %msg%n%ex</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp fieldName="timestamp" timeZone="UTC" />
+                <loggerName fieldName="logger" />
+                <threadName fieldName="thread" />
+                <logLevel fieldName="level" />
+                <message fieldName="message" />
+                <mdc>
+                    <includeKeys>traceId,spanId,requestId</includeKeys>
+                </mdc>
+                <stackTrace fieldName="stack_trace" />
+                <globalCustomFields>{"serviceName":"${serviceName:-unknown-service}","environment":"${environment:-local}","hostname":"${hostname:-unknown-host}"}</globalCustomFields>
+            </providers>
+        </encoder>
+    </appender>
+
+    <appender name="ROLLING_JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${logPath}/${logFileName}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${logPath}/${logFileName}-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp fieldName="timestamp" timeZone="UTC" />
+                <loggerName fieldName="logger" />
+                <threadName fieldName="thread" />
+                <logLevel fieldName="level" />
+                <message fieldName="message" />
+                <mdc>
+                    <includeKeys>traceId,spanId,requestId</includeKeys>
+                </mdc>
+                <stackTrace fieldName="stack_trace" />
+                <globalCustomFields>{"serviceName":"${serviceName:-unknown-service}","environment":"${environment:-local}","hostname":"${hostname:-unknown-host}"}</globalCustomFields>
+            </providers>
+        </encoder>
+    </appender>
+
+    <appender name="ERROR_JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${logPath}/${logFileName}-error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${logPath}/${logFileName}-error-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp fieldName="timestamp" timeZone="UTC" />
+                <loggerName fieldName="logger" />
+                <threadName fieldName="thread" />
+                <logLevel fieldName="level" />
+                <message fieldName="message" />
+                <mdc>
+                    <includeKeys>traceId,spanId,requestId</includeKeys>
+                </mdc>
+                <stackTrace fieldName="stack_trace" />
+                <globalCustomFields>{"serviceName":"${serviceName:-unknown-service}","environment":"${environment:-local}","hostname":"${hostname:-unknown-host}"}</globalCustomFields>
+            </providers>
+        </encoder>
+    </appender>
+
+    <appender name="ASYNC_JSON_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="JSON_CONSOLE" />
+    </appender>
+
+    <appender name="ASYNC_ROLLING_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>2048</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="ROLLING_JSON_FILE" />
+    </appender>
+
+    <appender name="ASYNC_ERROR_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="ERROR_JSON_FILE" />
+    </appender>
+
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="LOCAL_CONSOLE" />
+        </root>
+    </springProfile>
+
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_JSON_CONSOLE" />
+        </root>
+    </springProfile>
+
+    <springProfile name="qa,prod">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_JSON_CONSOLE" />
+            <appender-ref ref="ASYNC_ROLLING_FILE" />
+            <appender-ref ref="ASYNC_ERROR_FILE" />
+        </root>
+    </springProfile>
+
+    <logger name="com.example" level="DEBUG" />
+    <logger name="org.springframework" level="INFO" />
+    <logger name="org.hibernate" level="INFO" />
+
+</configuration>
